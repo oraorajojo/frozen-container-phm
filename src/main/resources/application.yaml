@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: frozenapi
+
+  #DB 설정
+  datasource:
+    url: jdbc:mysql://hayabusa.proxy.rlwy.net:39047/railway
+    username: root
+    password: ${DB_PASSWORD} #레포 clone 받은 다음, 본인 인텔리제이에서 똑같이 Edit Configurations → Environment variables에 같은 비밀번호를 넣으셈
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        highlight_sql: true
