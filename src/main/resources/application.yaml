@@ -16,3 +16,9 @@ spring:
         format_sql: true
         show_sql: true
         highlight_sql: true
+
+phm:
+  python:
+    path: C:/user/sole/backend/python/venv/Scripts/python.exe
+  script:
+    path: C:/user/sole/backend/python/predict.py
