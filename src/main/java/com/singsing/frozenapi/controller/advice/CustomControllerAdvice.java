@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 // 프로젝트 전역(모든 컨트롤러)에서 발생하는 특정 예외를 잡아,
@@ -24,8 +25,15 @@ public class CustomControllerAdvice {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("msg", e.getMessage()));
     }
 
-    // SignupRequestDTO의 @NotBlank, @Email, @Size 같은 Bean Validation 검증이 실패했을 때
-    // Spring이 자동으로 던지는 MethodArgumentNotValidException을 처리
+    // ContainerServiceImpl.getContainerOrThrow()/remove()에서 존재하지 않는 id로 조회/삭제 시 던지는 예외 처리
+    // -> 요청한 자원이 존재하지 않는 상황이므로 404 Not Found 사용
+    @ExceptionHandler(NoSuchElementException.class)
+    protected ResponseEntity<?> handleNotFound(NoSuchElementException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("msg", e.getMessage()));
+    }
+
+    // SignupRequestDTO, ContainerRequestDTO의 @NotBlank, @Email, @Size 같은 Bean Validation 검증이 실패했을 때
+    // Spring이 자동으로 던지는 MethodArgumentNotValidException을 처리 (모든 요청 DTO에 공통 적용됨)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     protected ResponseEntity<?> handleValidation(MethodArgumentNotValidException e) {
         // 검증에 실패한 필드가 여러 개일 수 있으므로, 각 필드의 에러 메시지를 모아서 하나의 문자열로 합침
