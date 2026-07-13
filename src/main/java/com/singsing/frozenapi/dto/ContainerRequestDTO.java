@@ -1,6 +1,7 @@
 package com.singsing.frozenapi.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,9 +21,12 @@ public class ContainerRequestDTO {
     // Bean Validation: 컨트롤러에서 @Valid와 함께 쓰이면
     // 조건을 만족하지 않을 경우 MethodArgumentNotValidException이 발생 -> CustomControllerAdvice가 400으로 변환
     @NotBlank(message = "모델명은 필수입니다.") // null, "", 공백만 있는 문자열을 모두 막음
+    @Size(max = 50, message = "모델명은 50자 이하로 입력해주세요.") // DB설계.pdf 기준 model_name varchar(50)
     private String modelName;
 
-    @NotBlank(message = "설치 위치는 필수입니다.")
+    // DB설계.pdf 기준 install_location은 Null 허용(선택 입력)이라 @NotBlank를 걸지 않는다.
+    // 값이 들어올 경우에는 길이만 제한 (varchar(100))
+    @Size(max = 100, message = "설치 위치는 100자 이하로 입력해주세요.")
     private String installLocation;
 
 }

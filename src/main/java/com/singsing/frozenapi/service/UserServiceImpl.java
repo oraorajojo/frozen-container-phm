@@ -36,12 +36,14 @@ public class UserServiceImpl implements UserService {
 
         // 2) 요청받은 정보로 User 엔티티 생성
         //    - 비밀번호는 절대 평문(원본) 그대로 저장하지 않고, passwordEncoder.encode()로 암호화(BCrypt 해시)한 값을 저장
-        //    - role, status는 클라이언트가 정하는 게 아니라 서버가 강제로 기본값을 부여 (보안상 중요: 누구나 회원가입만으로 ADMIN이 되면 안 됨)
+        //    - role은 클라이언트가 정하는 게 아니라 서버가 강제로 STAFF를 부여 (보안상 중요: 누구나 회원가입만으로 ADMIN이 되면 안 됨)
+        //    - status는 PENDING(승인 대기)으로 시작 -> 관리자가 별도로 승인해야 ACTIVE로 전환되는 구조 (관리자 승인 기능은 추후 구현)
         User user = User.builder()
                 .email(signupRequestDTO.getEmail())
+                .username(signupRequestDTO.getUsername())
                 .passwordHash(passwordEncoder.encode(signupRequestDTO.getPassword()))
-                .role(Role.USER)
-                .status(UserStatus.ACTIVE)
+                .role(Role.STAFF)
+                .status(UserStatus.PENDING)
                 .build();
 
         // 3) DB에 저장
@@ -57,8 +59,9 @@ public class UserServiceImpl implements UserService {
         return SignupResponseDTO.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
-                .role(user.getRole().name())     // enum -> 문자열 ("USER")
-                .status(user.getStatus().name()) // enum -> 문자열 ("ACTIVE")
+                .username(user.getUsername())
+                .role(user.getRole().name())     // enum -> 문자열 ("STAFF")
+                .status(user.getStatus().name()) // enum -> 문자열 ("PENDING")
                 .createdAt(user.getCreatedAt())
                 .build();
     }

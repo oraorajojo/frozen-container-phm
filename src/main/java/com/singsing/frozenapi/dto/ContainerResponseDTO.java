@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class ContainerResponseDTO {
 
-    private Long containerId;     // 컨테이너 PK
+    private Integer containerId;  // 컨테이너 PK
     private String modelName;
     private String installLocation;
     private LocalDate registeredAt; // 등록일 (서버가 자동으로 채운 값)

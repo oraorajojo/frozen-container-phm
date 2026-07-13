@@ -18,8 +18,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class SignupResponseDTO {
 
-    private Long userId;       // 생성된 회원의 PK
+    private Integer userId;    // 생성된 회원의 PK
     private String email;
+    private String username;
     private String role;       // enum Role을 문자열로 변환해서 전달 (Role.name() 결과, 예: "USER")
     private String status;     // enum UserStatus를 문자열로 변환해서 전달 (예: "ACTIVE")
     private LocalDateTime createdAt; // 가입 시각

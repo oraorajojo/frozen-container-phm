@@ -13,8 +13,8 @@ public interface ContainerService {
 
     ContainerResponseDTO register(ContainerRequestDTO containerRequestDTO); // 등록 (Create)
     List<ContainerResponseDTO> getList();                                  // 전체 목록 조회 (Read - all)
-    ContainerResponseDTO get(Long containerId);                            // 단건 조회 (Read - one)
-    ContainerResponseDTO modify(Long containerId, ContainerRequestDTO containerRequestDTO); // 수정 (Update)
-    void remove(Long containerId);                                        // 삭제 (Delete)
+    ContainerResponseDTO get(Integer containerId);                            // 단건 조회 (Read - one)
+    ContainerResponseDTO modify(Integer containerId, ContainerRequestDTO containerRequestDTO); // 수정 (Update)
+    void remove(Integer containerId);                                        // 삭제 (Delete)
 
 }

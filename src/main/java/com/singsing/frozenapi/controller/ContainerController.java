@@ -44,7 +44,7 @@ public class ContainerController {
 
     // 단건 조회 : GET /api/containers/{containerId}
     @GetMapping("/{containerId}")
-    public ResponseEntity<ContainerResponseDTO> get(@PathVariable Long containerId) {
+    public ResponseEntity<ContainerResponseDTO> get(@PathVariable Integer containerId) {
         // @PathVariable : URL 경로의 {containerId} 부분을 메서드 파라미터로 그대로 받음
         // 존재하지 않는 id면 ContainerService 내부에서 NoSuchElementException이 발생 -> 404 응답으로 자동 변환됨
         return ResponseEntity.ok(containerService.get(containerId));
@@ -53,7 +53,7 @@ public class ContainerController {
     // 수정 : PUT /api/containers/{containerId}
     @PutMapping("/{containerId}")
     public ResponseEntity<ContainerResponseDTO> modify(
-            @PathVariable Long containerId,
+            @PathVariable Integer containerId,
             @Valid @RequestBody ContainerRequestDTO containerRequestDTO) {
         log.info("*********** ContainerController - modify - containerId: {}", containerId);
         return ResponseEntity.ok(containerService.modify(containerId, containerRequestDTO));
@@ -61,7 +61,7 @@ public class ContainerController {
 
     // 삭제 : DELETE /api/containers/{containerId}
     @DeleteMapping("/{containerId}")
-    public ResponseEntity<Map<String, Boolean>> remove(@PathVariable Long containerId) {
+    public ResponseEntity<Map<String, Boolean>> remove(@PathVariable Integer containerId) {
         log.info("*********** ContainerController - remove - containerId: {}", containerId);
         containerService.remove(containerId);
         // 삭제 성공 여부만 알려주면 되므로 간단히 { "result": true } 형태로 응답

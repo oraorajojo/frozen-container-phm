@@ -25,12 +25,15 @@ public class Container {
     @Id // 이 필드가 테이블의 기본키(PK)임을 표시
     @GeneratedValue(strategy = GenerationType.IDENTITY) // PK 값을 DB(AUTO_INCREMENT)가 자동으로 채번하도록 위임
     @Column(name = "container_id") // 실제 DB 컬럼명 지정 (Java 필드명 containerId -> DB 컬럼명 container_id)
-    private Long containerId;
+    private Integer containerId;
 
-    @Column(name = "model_name", nullable = false) // NOT NULL 제약. 컨테이너 모델명 (예: "FRZ-2000")
+    // DB설계.pdf 기준: model_name varchar(50), NOT NULL
+    @Column(name = "model_name", nullable = false, length = 50) // 컨테이너/컴프레서 모델명 (예: "FRZ-2000")
     private String modelName;
 
-    @Column(name = "install_location", nullable = false) // 설치 위치 (예: "냉동창고 A동 1구역")
+    // DB설계.pdf 기준: install_location varchar(100), Null 허용(Y), 기본값 NULL
+    // -> model_name과 달리 설치 위치는 아직 모를 수 있어 선택 입력 항목으로 설계됨
+    @Column(name = "install_location", length = 100) // nullable 기본값 true라 별도 지정 안 함
     private String installLocation;
 
     // ERD상 registered_at은 datetime이 아니라 date 타입이라 LocalDateTime이 아닌 LocalDate 사용

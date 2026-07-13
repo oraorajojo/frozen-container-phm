@@ -47,13 +47,13 @@ public class ContainerServiceImpl implements ContainerService {
     }
 
     @Override
-    public ContainerResponseDTO get(Long containerId) {
+    public ContainerResponseDTO get(Integer containerId) {
         Container container = getContainerOrThrow(containerId);
         return entityToDTO(container);
     }
 
     @Override
-    public ContainerResponseDTO modify(Long containerId, ContainerRequestDTO containerRequestDTO) {
+    public ContainerResponseDTO modify(Integer containerId, ContainerRequestDTO containerRequestDTO) {
         log.info("*********** ContainerService - modify - containerId: {}, dto: {}", containerId, containerRequestDTO);
 
         // 먼저 존재하는 컨테이너인지 조회 (없으면 아래 getContainerOrThrow에서 예외 발생)
@@ -71,7 +71,7 @@ public class ContainerServiceImpl implements ContainerService {
     }
 
     @Override
-    public void remove(Long containerId) {
+    public void remove(Integer containerId) {
         log.info("*********** ContainerService - remove - containerId: {}", containerId);
 
         // 존재하지 않는 id를 삭제하려고 하면 (아무 일도 없었다는 듯 조용히 넘어가지 않고)
@@ -85,7 +85,7 @@ public class ContainerServiceImpl implements ContainerService {
     // id로 컨테이너를 조회하되, 없으면 예외를 던지는 공통 로직을 메서드로 분리
     // -> get()과 modify()에서 똑같이 반복되는 "조회 후 없으면 예외" 패턴을 한 곳에 모아 중복 제거
     // 여기서 던지는 NoSuchElementException은 CustomControllerAdvice.handleNotFound()가 잡아서 404 응답으로 변환한다.
-    private Container getContainerOrThrow(Long containerId) {
+    private Container getContainerOrThrow(Integer containerId) {
         return containerRepository.findById(containerId)
                 .orElseThrow(() -> new NoSuchElementException("존재하지 않는 컨테이너입니다."));
     }

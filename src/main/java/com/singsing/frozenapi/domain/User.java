@@ -22,24 +22,33 @@ public class User {
     @Id // 이 필드가 테이블의 기본키(PK)임을 표시
     @GeneratedValue(strategy = GenerationType.IDENTITY) // PK 값을 DB(AUTO_INCREMENT)가 자동으로 채번하도록 위임
     @Column(name = "user_id") // 실제 DB 컬럼명 지정 (Java 필드명 userId -> DB 컬럼명 user_id)
-    private Long userId;
+    private Integer userId;
 
-    @Column(nullable = false, unique = true) // NOT NULL + 중복 불가(유니크) 제약조건. 이메일은 로그인 아이디 역할이라 중복되면 안 됨
+    @Column(nullable = false, unique = true, length = 100) // NOT NULL + 중복 불가(유니크) 제약조건. 이메일은 로그인 아이디 역할이라 중복되면 안 됨
     private String email;
 
-    @Column(name = "password_hash", nullable = false) // 원본 비밀번호가 아니라 암호화(BCrypt)된 값이 저장됨
+    @Column(nullable = false, length = 50) // 화면에 보여줄 이름/닉네임. email과 달리 중복은 허용 (unique 아님)
+    private String username;
+
+    @Column(name = "password_hash", nullable = false, length = 255) // 원본 비밀번호가 아니라 암호화(BCrypt)된 값이 저장됨
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING) // enum을 DB에 저장할 때 순서(0,1,2..) 대신 이름 문자열("USER" 등)로 저장 (순서가 바뀌어도 안전)
-    @Column(nullable = false)
+    // 테이블 정의서 기준: role varchar(20), 기본값 'STAFF'
+    // enum을 DB에 저장할 때 순서(0,1,2..) 대신 이름 문자열("STAFF" 등)로 저장 (순서가 바뀌어도 안전)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'STAFF'")
     private Role role;
 
+    // 테이블 정의서 기준: status varchar(20), 기본값 'PENDING'
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'PENDING'")
     private UserStatus status;
 
+    // 테이블 정의서 기준: created_at 기본값 CURRENT_TIMESTAMP
+    // @CreatedDate가 애플리케이션 레벨에서 항상 값을 채워 넣긴 하지만,
+    // DB 레벨 기본값도 정의서와 맞춰 명시해 둔다 (다른 경로로 직접 insert되는 경우에 대한 안전장치)
     @CreatedDate // 엔티티가 처음 저장(insert)될 때 현재 시간이 자동으로 채워짐 (수정 시에는 값이 바뀌지 않음)
-    @Column(name = "created_at", updatable = false, nullable = false) // updatable = false : 이후 update 쿼리에서는 이 컬럼을 건드리지 않음
+    @Column(name = "created_at", updatable = false, nullable = false, columnDefinition = "datetime default CURRENT_TIMESTAMP") // updatable = false : 이후 update 쿼리에서는 이 컬럼을 건드리지 않음
     private LocalDateTime createdAt;
 
     // ===== 수정용 메서드 =====
@@ -54,6 +63,11 @@ public class User {
     // 계정 상태 변경 시 사용 (추후 탈퇴/정지 기능에서 사용 예정)
     public void changeStatus(UserStatus status) {
         this.status = status;
+    }
+
+    // 유저명 변경 시 사용 (추후 프로필 수정 기능에서 사용 예정)
+    public void changeUsername(String username) {
+        this.username = username;
     }
 
 }
