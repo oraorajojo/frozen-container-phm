@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class PredictResponseDto {
     @JsonProperty("RUL_pred") private double rulPred;
+    @JsonProperty("food_type") private String foodType;
     @JsonProperty("freshness_grade") private String freshnessGrade;
     @JsonProperty("prob_Green") private double probGreen;
     @JsonProperty("prob_Yellow") private double probYellow;

@@ -22,6 +22,9 @@ public class PredictionResult {
     @Column(name = "rul_predicted")
     private Double rulPredicted;
 
+    @Column(name = "food_type")
+    private String foodType;
+
     @Column(name = "delta_t")
     private Double deltaT;
 
