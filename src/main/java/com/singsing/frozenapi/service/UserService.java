@@ -1,7 +1,11 @@
 package com.singsing.frozenapi.service;
 
+import com.singsing.frozenapi.dto.LoginRequestDTO;
+import com.singsing.frozenapi.dto.LoginResponseDTO;
+import com.singsing.frozenapi.dto.RefreshRequestDTO;
 import com.singsing.frozenapi.dto.SignupRequestDTO;
 import com.singsing.frozenapi.dto.SignupResponseDTO;
+import com.singsing.frozenapi.dto.TokenResponseDTO;
 
 // 회원 관련 비즈니스 로직의 "규격(인터페이스)"만 정의
 // 실제 구현은 UserServiceImpl이 담당한다.
@@ -13,5 +17,11 @@ public interface UserService {
 
     // 회원가입 처리: 요청 DTO를 받아서 가입 처리 후, 응답 DTO를 리턴
     SignupResponseDTO signup(SignupRequestDTO signupRequestDTO);
+
+    // 로그인 처리: 이메일/비밀번호 검증 후 성공하면 JWT 토큰 + 회원 정보를 리턴
+    LoginResponseDTO login(LoginRequestDTO loginRequestDTO);
+
+    // accessToken 재발급: refreshToken이 유효하면 새 accessToken/refreshToken 쌍을 리턴
+    TokenResponseDTO refresh(RefreshRequestDTO refreshRequestDTO);
 
 }

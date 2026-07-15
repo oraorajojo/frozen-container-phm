@@ -1,5 +1,8 @@
 package com.singsing.frozenapi.config;
 
+import com.singsing.frozenapi.security.filter.JWTCheckFilter;
+import com.singsing.frozenapi.util.JWTUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,7 +28,10 @@ import java.util.Arrays;
 @Configuration    // 이 클래스가 Spring 설정 클래스임을 표시 (내부의 @Bean들이 자동 등록됨)
 @Slf4j
 @EnableWebSecurity // Spring Security의 웹 보안 기능을 활성화
+@RequiredArgsConstructor // JWTUtil을 생성자로 주입받기 위해 추가 (JWTCheckFilter를 만들 때 필요)
 public class CustomSecurityConfig {
+
+    private final JWTUtil jwtUtil;
 
     // HTTP 요청에 대한 보안 규칙 체인을 정의하는 핵심 Bean
     @Bean
@@ -44,14 +51,18 @@ public class CustomSecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         // 스프링 시큐리티 기본 로그인 폼/HTTP Basic 인증 화면 비활성화
-        // -> 아직 로그인 기능을 구현하지 않았고, 지금은 회원가입 API만 있기 때문에 기본 로그인 화면이 뜨지 않게 막음
+        // -> 로그인은 폼이 아니라 UserController.login()에서 JSON으로 직접 처리하기 때문에, 기본 로그인 화면은 필요 없음
         http.formLogin(login -> login.disable());
         http.httpBasic(basic -> basic.disable());
 
+        // JWT 검증 필터를 UsernamePasswordAuthenticationFilter보다 앞에 등록
+        // -> 매 요청마다 이 필터가 먼저 실행되어 Authorization 헤더의 토큰을 검사한다 (JWTCheckFilter 참고)
+        http.addFilterBefore(new JWTCheckFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
+
         // 요청 경로별 인가(authorization) 규칙
-        // 지금은 로그인/JWT 인증 기능이 없으므로 모든 요청을 permitAll(인증 없이 허용)로 열어둠
-        // -> 나중에 로그인 API, JWT 필터를 추가하면 이 부분을 세분화해서
-        //    (예: "/api/users/signup"은 permitAll, 나머지는 인증 필요) 재설정해야 함
+        // 지금은 로그인/회원가입 API만 만든 단계라 특정 API를 "로그인 필요"로 강제하지는 않고 모두 permitAll로 열어둠
+        // -> JWTCheckFilter는 이미 붙어있으니, 나중에 특정 API를 잠글 땐
+        //    예) auth.requestMatchers("/api/containers/**").authenticated().anyRequest().permitAll() 처럼 세분화하면 된다
         http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();

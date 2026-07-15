@@ -1,7 +1,11 @@
 package com.singsing.frozenapi.controller;
 
+import com.singsing.frozenapi.dto.LoginRequestDTO;
+import com.singsing.frozenapi.dto.LoginResponseDTO;
+import com.singsing.frozenapi.dto.RefreshRequestDTO;
 import com.singsing.frozenapi.dto.SignupRequestDTO;
 import com.singsing.frozenapi.dto.SignupResponseDTO;
+import com.singsing.frozenapi.dto.TokenResponseDTO;
 import com.singsing.frozenapi.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +44,27 @@ public class UserController {
 
         // 자원(회원)이 새로 생성되었으므로 HTTP 상태코드 201 Created + 생성된 회원 정보를 응답
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+    }
+
+    // 로그인 API
+    // 요청: POST http://localhost:8080/api/users/login
+    //       Body(JSON): { "email": "a@a.com", "password": "12345678" }
+    // 이 경로는 JWTCheckFilter.shouldNotFilter()에서 필터를 건너뛰도록 등록되어 있다 (로그인 전이라 토큰이 없는 게 당연하므로)
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
+        log.info("*********** UserController - login: {}", loginRequestDTO.getEmail());
+        LoginResponseDTO responseDTO = userService.login(loginRequestDTO);
+        // 로그인은 새 자원을 만드는 게 아니라 기존 회원을 인증하는 것이므로 200 OK 사용 (signup의 201 Created와 다름)
+        return ResponseEntity.ok(responseDTO);
+    }
+
+    // accessToken 재발급 API
+    // 요청: POST http://localhost:8080/api/users/refresh
+    //       Body(JSON): { "refreshToken": "..." }
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshRequestDTO refreshRequestDTO) {
+        log.info("*********** UserController - refresh");
+        return ResponseEntity.ok(userService.refresh(refreshRequestDTO));
     }
 
 }

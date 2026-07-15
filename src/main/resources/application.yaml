@@ -16,3 +16,9 @@ spring:
         format_sql: true
         show_sql: true
         highlight_sql: true
+
+# JWT 서명에 사용하는 비밀 키 (HS256 이상을 위해 최소 32바이트 이상의 무작위 문자열)
+# 실제 운영 환경에서는 이 값도 DB_PASSWORD처럼 환경변수로 분리하는 게 더 안전하다.
+custom:
+  jwt:
+    key: YmcoyYxpPs77LEcuBMG8xKuOXBYboXkGl/1Zvylg5kFVuoZWXtsyqfWh4sxb/bnL

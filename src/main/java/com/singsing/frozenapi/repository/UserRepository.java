@@ -3,6 +3,8 @@ package com.singsing.frozenapi.repository;
 import com.singsing.frozenapi.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
+
 // User 엔티티에 대한 DB 접근(CRUD)을 담당하는 리포지토리 인터페이스
 // JpaRepository<User, Integer> 을 상속받는 것만으로 save(), findById(), findAll(), delete() 등이 자동 구현됨
 // (Integer는 User 엔티티의 PK 타입인 userId의 타입 - DB설계.pdf 기준 user_id가 int라서 Long 대신 Integer 사용)
@@ -14,5 +16,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     // "select case when count(u)>0 then true else false end from User u where u.email = ?" 쿼리를 만들어 실행해준다.
     // -> 회원가입 시 이메일 중복 여부 체크에 사용 (UserServiceImpl.signup 참고)
     boolean existsByEmail(String email);
+
+    // 이메일로 회원 조회 (로그인 시 사용). 없을 수도 있으니 Optional로 감싸서 리턴됨
+    Optional<User> findByEmail(String email);
 
 }

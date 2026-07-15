@@ -1,5 +1,7 @@
 package com.singsing.frozenapi.controller.advice;
 
+import com.singsing.frozenapi.util.CustomJWTException;
+import com.singsing.frozenapi.util.LoginFailException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,6 +32,20 @@ public class CustomControllerAdvice {
     @ExceptionHandler(NoSuchElementException.class)
     protected ResponseEntity<?> handleNotFound(NoSuchElementException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("msg", e.getMessage()));
+    }
+
+    // UserServiceImpl.login()에서 이메일/비밀번호 불일치, 승인 대기(PENDING) 계정 로그인 시도 시 던지는 예외 처리
+    // -> "인증 자체에 실패"한 상황이므로 401 Unauthorized 사용
+    @ExceptionHandler(LoginFailException.class)
+    protected ResponseEntity<?> handleLoginFail(LoginFailException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("msg", e.getMessage()));
+    }
+
+    // JWTUtil.validateToken()에서 토큰이 만료/변조/형식오류 등으로 검증에 실패했을 때 던지는 예외 처리
+    // (주로 /api/users/refresh 호출 시 refreshToken 자체가 유효하지 않은 경우 발생)
+    @ExceptionHandler(CustomJWTException.class)
+    protected ResponseEntity<?> handleJWTException(CustomJWTException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("msg", e.getMessage()));
     }
 
     // SignupRequestDTO, ContainerRequestDTO의 @NotBlank, @Email, @Size 같은 Bean Validation 검증이 실패했을 때
