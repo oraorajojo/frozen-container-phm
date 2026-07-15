@@ -21,17 +21,30 @@ public class PredictionService {
 
     private final SensorReadingRepository sensorReadingRepo;
     private final PredictionResultRepository predictionResultRepo;
+    private final ContainerItemLogRepository containerItemLogRepo;
+    private final ItemRepository itemRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String CALC_VERSION = "xgb_json_v1";
+    private static final String CALC_VERSION = "xgb_json_v2_foodtype";
 
-    public PredictionService(SensorReadingRepository s, PredictionResultRepository p) {
+    public PredictionService(SensorReadingRepository s, PredictionResultRepository p,
+                             ContainerItemLogRepository c, ItemRepository i) {
         this.sensorReadingRepo = s;
         this.predictionResultRepo = p;
+        this.containerItemLogRepo = c;
+        this.itemRepo = i;
     }
 
     public PredictResponseDto predict(Integer readingId) throws Exception {
         SensorReading latest = sensorReadingRepo.findById(readingId)
                 .orElseThrow(() -> new RuntimeException("reading_id 없음: " + readingId));
+
+        // 현재 컨테이너에 실린 품목 조회 (unloaded_at이 null = 아직 하역 안 됨)
+        ContainerItemLog log = containerItemLogRepo
+                .findFirstByContainerIdAndUnloadedAtIsNullOrderByLoadedAtDesc(latest.getContainerId())
+                .orElseThrow(() -> new RuntimeException("현재 적재된 품목 없음: container_id=" + latest.getContainerId()));
+        Item item = itemRepo.findById(log.getItemId())
+                .orElseThrow(() -> new RuntimeException("item 없음: item_id=" + log.getItemId()));
+        String foodType = item.getFoodType();
 
         List<SensorReading> window = sensorReadingRepo
                 .findTop5ByContainerIdOrderByRecordedAtDesc(latest.getContainerId());
@@ -52,10 +65,11 @@ public class PredictionService {
         long cycle = sensorReadingRepo.countByContainerId(latest.getContainerId());
 
         String inputJson = String.format(
-                "{\\\"vibration\\\":%f,\\\"oil_pressure\\\":%f,\\\"discharge_temp\\\":%f,\\\"motor_current\\\":%f," +
+                "{\\\"food_type\\\":\\\"%s\\\",\\\"vibration\\\":%f,\\\"oil_pressure\\\":%f,\\\"discharge_temp\\\":%f,\\\"motor_current\\\":%f," +
                         "\\\"vibration_roll_mean\\\":%f,\\\"oil_pressure_roll_mean\\\":%f,\\\"discharge_temp_roll_mean\\\":%f,\\\"motor_current_roll_mean\\\":%f," +
                         "\\\"vibration_roll_std\\\":%f,\\\"oil_pressure_roll_std\\\":%f,\\\"discharge_temp_roll_std\\\":%f,\\\"motor_current_roll_std\\\":%f," +
                         "\\\"delta_T_weighted\\\":%f,\\\"FDR\\\":%f,\\\"cycle\\\":%d}",
+                foodType,
                 latest.getVibration(), latest.getOilPressure(), latest.getDischargeTemp(), latest.getMotorCurrent(),
                 vibMean, oilMean, tempMean, curMean,
                 vibStd, oilStd, tempStd, curStd,
@@ -63,13 +77,13 @@ public class PredictionService {
         );
 
         ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, inputJson);
-        pb.environment().put("PYTHONIOENCODING", "utf-8");   // ← 이 줄 추가
+        pb.environment().put("PYTHONIOENCODING", "utf-8");
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
         String output;
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {   // ← UTF_8 명시
+                new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
             output = reader.lines().collect(Collectors.joining()).trim();
         }
         process.waitFor();
@@ -81,6 +95,7 @@ public class PredictionService {
         PredictionResult result = new PredictionResult();
         result.setReadingId(latest.getReadingId());
         result.setContainerId(latest.getContainerId());
+        result.setFoodType(foodType);
         result.setRulPredicted(response.getRulPred());
         result.setDeltaT(deltaT);
         result.setFdr(fdr);
