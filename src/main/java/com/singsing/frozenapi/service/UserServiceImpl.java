@@ -57,24 +57,32 @@ public class UserServiceImpl implements UserService {
             throw new NoSuchElementException("존재하지 않는 지점입니다.");
         }
 
-        // 3) 요청받은 정보로 User 엔티티 생성
+        // 3) ADMIN 셀프 신청 차단 (2026-07-16 회의록: 매니저 승격도 신청+관리자 승인 절차를 두는데,
+        //    회원가입만으로 최고 권한인 ADMIN을 받을 수 있으면 그 승인 체계 자체가 무의미해짐)
+        //    STAFF/MANAGER는 사용자가 신청값 그대로 받되, status가 PENDING인 동안은 로그인 자체가
+        //    막혀있으므로(login() 참고) 관리자가 승인하기 전까지 실제로 이 권한이 쓰이지는 않는다.
+        if (signupRequestDTO.getRole() == Role.ADMIN) {
+            throw new IllegalArgumentException("관리자 권한은 회원가입으로 신청할 수 없습니다.");
+        }
+
+        // 4) 요청받은 정보로 User 엔티티 생성
         //    - 비밀번호는 절대 평문(원본) 그대로 저장하지 않고, passwordEncoder.encode()로 암호화(BCrypt 해시)한 값을 저장
-        //    - role은 클라이언트가 정하는 게 아니라 서버가 강제로 STAFF를 부여 (보안상 중요: 누구나 회원가입만으로 ADMIN/MANAGER가 되면 안 됨)
         //    - status는 PENDING(승인 대기)으로 시작 -> 관리자가 별도로 승인해야 ACTIVE로 전환되는 구조 (관리자 승인 기능은 추후 구현)
         User user = User.builder()
                 .email(signupRequestDTO.getEmail())
                 .username(signupRequestDTO.getUsername())
                 .passwordHash(passwordEncoder.encode(signupRequestDTO.getPassword()))
                 .branchId(signupRequestDTO.getBranchId())
-                .role(Role.STAFF)
+                .position(signupRequestDTO.getPosition())
+                .role(signupRequestDTO.getRole())
                 .status(UserStatus.PENDING)
                 .build();
 
-        // 4) DB에 저장
+        // 5) DB에 저장
         //    save()가 리턴하는 saved 엔티티에는 DB가 채번한 userId, @CreatedDate로 채워진 createdAt이 반영되어 있음
         User saved = userRepository.save(user);
 
-        // 5) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
+        // 6) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
         return entityToDTO(saved);
     }
 
@@ -84,6 +92,7 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .position(user.getPosition())
                 .role(user.getRole().name())     // enum -> 문자열 ("STAFF")
                 .status(user.getStatus().name()) // enum -> 문자열 ("PENDING")
                 .branchId(user.getBranchId())
@@ -131,6 +140,7 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .position(user.getPosition())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
                 .branchId(user.getBranchId())

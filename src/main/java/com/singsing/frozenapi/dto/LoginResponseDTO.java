@@ -20,6 +20,7 @@ public class LoginResponseDTO {
     private Integer userId;
     private String email;
     private String username;
+    private String position;
     private String role;
     private String status;
     private Integer branchId;

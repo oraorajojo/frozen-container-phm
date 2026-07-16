@@ -38,6 +38,10 @@ public class User {
     @Column(name = "branch_id", nullable = false) // 회원가입 시 지점 선택 필수
     private Integer branchId;
 
+    // 회사 내 직함(사원/대리/과장 등). 시스템 권한(Role)과는 별개의 개념 - 단순 표시용 정보라 자유 문자열로 관리
+    @Column(nullable = false, length = 50)
+    private String position;
+
     // 테이블 정의서 기준: role varchar(20), 기본값 'STAFF'
     // enum을 DB에 저장할 때 순서(0,1,2..) 대신 이름 문자열("STAFF" 등)로 저장 (순서가 바뀌어도 안전)
     @Enumerated(EnumType.STRING)
@@ -78,6 +82,11 @@ public class User {
     // 소속 지점 변경 시 사용 (추후 지점 이동 기능에서 사용 예정)
     public void changeBranchId(Integer branchId) {
         this.branchId = branchId;
+    }
+
+    // 직급 변경 시 사용 (추후 프로필 수정 기능에서 사용 예정)
+    public void changePosition(String position) {
+        this.position = position;
     }
 
 }
