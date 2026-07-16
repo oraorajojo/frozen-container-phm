@@ -1,0 +1,24 @@
+{
+  "classes": [
+    "Green",
+    "Yellow",
+    "Red"
+  ],
+  "features": [
+    "vibration",
+    "oil_pressure",
+    "discharge_temp",
+    "motor_current",
+    "vibration_roll_mean",
+    "oil_pressure_roll_mean",
+    "discharge_temp_roll_mean",
+    "motor_current_roll_mean",
+    "vibration_roll_std",
+    "oil_pressure_roll_std",
+    "discharge_temp_roll_std",
+    "motor_current_roll_std",
+    "delta_T_weighted",
+    "FDR",
+    "cycle"
+  ]
+}
