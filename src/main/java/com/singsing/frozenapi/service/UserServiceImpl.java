@@ -9,6 +9,7 @@ import com.singsing.frozenapi.dto.RefreshRequestDTO;
 import com.singsing.frozenapi.dto.SignupRequestDTO;
 import com.singsing.frozenapi.dto.SignupResponseDTO;
 import com.singsing.frozenapi.dto.TokenResponseDTO;
+import com.singsing.frozenapi.repository.BranchRepository;
 import com.singsing.frozenapi.repository.UserRepository;
 import com.singsing.frozenapi.util.JWTUtil;
 import com.singsing.frozenapi.util.LoginFailException;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.NoSuchElementException;
 import java.util.Map;
 
 // UserService 인터페이스의 실제 구현체. 회원가입/로그인/토큰재발급의 핵심 로직이 들어있는 곳
@@ -37,6 +39,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder; // CustomSecurityConfig에서 Bean으로 등록한 BCryptPasswordEncoder가 주입됨
     private final JWTUtil jwtUtil;                  // 로그인/재발급 시 JWT 토큰을 생성/검증하기 위해 주입받음
+    private final BranchRepository branchRepository; // 회원가입 시 branchId 존재 검증 + 응답용 지점명 조회에 사용
 
     @Override
     public SignupResponseDTO signup(SignupRequestDTO signupRequestDTO) {
@@ -48,23 +51,38 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
         }
 
-        // 2) 요청받은 정보로 User 엔티티 생성
+        // 2) 지점 존재 여부 검증 (2026-07-16 회의록: 회원가입 시 소속 지점 선택 필수)
+        //    branch_id는 User.java에 @ManyToOne 없이 단순 값으로만 저장하므로, 존재하지 않는 지점을 가리키지 않도록 여기서 직접 확인
+        if (!branchRepository.existsById(signupRequestDTO.getBranchId())) {
+            throw new NoSuchElementException("존재하지 않는 지점입니다.");
+        }
+
+        // 3) ADMIN 셀프 신청 차단 (2026-07-16 회의록: 매니저 승격도 신청+관리자 승인 절차를 두는데,
+        //    회원가입만으로 최고 권한인 ADMIN을 받을 수 있으면 그 승인 체계 자체가 무의미해짐)
+        //    STAFF/MANAGER는 사용자가 신청값 그대로 받되, status가 PENDING인 동안은 로그인 자체가
+        //    막혀있으므로(login() 참고) 관리자가 승인하기 전까지 실제로 이 권한이 쓰이지는 않는다.
+        if (signupRequestDTO.getRole() == Role.ADMIN) {
+            throw new IllegalArgumentException("관리자 권한은 회원가입으로 신청할 수 없습니다.");
+        }
+
+        // 4) 요청받은 정보로 User 엔티티 생성
         //    - 비밀번호는 절대 평문(원본) 그대로 저장하지 않고, passwordEncoder.encode()로 암호화(BCrypt 해시)한 값을 저장
-        //    - role은 클라이언트가 정하는 게 아니라 서버가 강제로 STAFF를 부여 (보안상 중요: 누구나 회원가입만으로 ADMIN이 되면 안 됨)
         //    - status는 PENDING(승인 대기)으로 시작 -> 관리자가 별도로 승인해야 ACTIVE로 전환되는 구조 (관리자 승인 기능은 추후 구현)
         User user = User.builder()
                 .email(signupRequestDTO.getEmail())
                 .username(signupRequestDTO.getUsername())
                 .passwordHash(passwordEncoder.encode(signupRequestDTO.getPassword()))
-                .role(Role.STAFF)
+                .branchId(signupRequestDTO.getBranchId())
+                .position(signupRequestDTO.getPosition())
+                .role(signupRequestDTO.getRole())
                 .status(UserStatus.PENDING)
                 .build();
 
-        // 3) DB에 저장
+        // 5) DB에 저장
         //    save()가 리턴하는 saved 엔티티에는 DB가 채번한 userId, @CreatedDate로 채워진 createdAt이 반영되어 있음
         User saved = userRepository.save(user);
 
-        // 4) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
+        // 6) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
         return entityToDTO(saved);
     }
 
@@ -74,10 +92,20 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .position(user.getPosition())
                 .role(user.getRole().name())     // enum -> 문자열 ("STAFF")
                 .status(user.getStatus().name()) // enum -> 문자열 ("PENDING")
+                .branchId(user.getBranchId())
+                .branchName(findBranchName(user.getBranchId())) // 프론트가 branchId만 보고 이름을 다시 조회하지 않도록 같이 내려줌
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+
+    // branchId로 지점명만 조회하는 헬퍼. 존재 검증은 signup()/login()에서 이미 끝났으므로 못 찾으면 null 처리만 함
+    private String findBranchName(Integer branchId) {
+        return branchRepository.findById(branchId)
+                .map(branch -> branch.getName())
+                .orElse(null);
     }
 
     @Override
@@ -112,8 +140,11 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .username(user.getUsername())
+                .position(user.getPosition())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
+                .branchId(user.getBranchId())
+                .branchName(findBranchName(user.getBranchId()))
                 .build();
     }
 

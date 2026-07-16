@@ -27,6 +27,10 @@ public class Container {
     @Column(name = "container_id") // 실제 DB 컬럼명 지정 (Java 필드명 containerId -> DB 컬럼명 container_id)
     private Integer containerId;
 
+    // 2026-07-16 회의록 기준 추가: 소속 지점 (FK -> branch.branch_id)
+    @Column(name = "branch_id", nullable = false)
+    private Integer branchId;
+
     // DB설계.pdf 기준: model_name varchar(50), NOT NULL
     @Column(name = "model_name", nullable = false, length = 50) // 컨테이너/컴프레서 모델명 (예: "FRZ-2000")
     private String modelName;
@@ -51,6 +55,9 @@ public class Container {
     }
     public void changeInstallLocation(String installLocation) {
         this.installLocation = installLocation;
+    }
+    public void changeBranchId(Integer branchId) {
+        this.branchId = branchId;
     }
 
 }

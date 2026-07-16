@@ -21,8 +21,11 @@ public class SignupResponseDTO {
     private Integer userId;    // 생성된 회원의 PK
     private String email;
     private String username;
+    private String position;   // 직급 (Role과 별개의 표시용 직함)
     private String role;       // enum Role을 문자열로 변환해서 전달 (Role.name() 결과, 예: "USER")
     private String status;     // enum UserStatus를 문자열로 변환해서 전달 (예: "ACTIVE")
+    private Integer branchId;
+    private String branchName; // 프론트에서 branchId로 다시 지점 목록을 조회하지 않아도 되게 이름을 같이 내려줌
     private LocalDateTime createdAt; // 가입 시각
 
 }

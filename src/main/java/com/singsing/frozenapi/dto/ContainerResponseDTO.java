@@ -18,6 +18,8 @@ import java.time.LocalDate;
 public class ContainerResponseDTO {
 
     private Integer containerId;  // 컨테이너 PK
+    private Integer branchId;
+    private String branchName;    // 프론트에서 branchId로 다시 지점 목록을 조회하지 않아도 되게 이름을 같이 내려줌
     private String modelName;
     private String installLocation;
     private LocalDate registeredAt; // 등록일 (서버가 자동으로 채운 값)
