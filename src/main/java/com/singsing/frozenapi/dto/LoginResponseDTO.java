@@ -22,5 +22,7 @@ public class LoginResponseDTO {
     private String username;
     private String role;
     private String status;
+    private Integer branchId;
+    private String branchName;
 
 }

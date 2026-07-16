@@ -33,6 +33,11 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255) // 원본 비밀번호가 아니라 암호화(BCrypt)된 값이 저장됨
     private String passwordHash;
 
+    // 2026-07-16 회의록 기준 추가: 소속 지점 (FK -> branch.branch_id)
+    // Container/Item의 container_id/item_id와 동일한 컨벤션으로, @ManyToOne 없이 id 값만 저장
+    @Column(name = "branch_id", nullable = false) // 회원가입 시 지점 선택 필수
+    private Integer branchId;
+
     // 테이블 정의서 기준: role varchar(20), 기본값 'STAFF'
     // enum을 DB에 저장할 때 순서(0,1,2..) 대신 이름 문자열("STAFF" 등)로 저장 (순서가 바뀌어도 안전)
     @Enumerated(EnumType.STRING)
@@ -68,6 +73,11 @@ public class User {
     // 유저명 변경 시 사용 (추후 프로필 수정 기능에서 사용 예정)
     public void changeUsername(String username) {
         this.username = username;
+    }
+
+    // 소속 지점 변경 시 사용 (추후 지점 이동 기능에서 사용 예정)
+    public void changeBranchId(Integer branchId) {
+        this.branchId = branchId;
     }
 
 }
