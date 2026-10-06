@@ -17,7 +17,10 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     // -> 회원가입 시 이메일 중복 여부 체크에 사용 (UserServiceImpl.signup 참고)
     boolean existsByEmail(String email);
 
-    // 이메일로 회원 조회 (로그인 시 사용). 없을 수도 있으니 Optional로 감싸서 리턴됨
-    Optional<User> findByEmail(String email);
+    // 로그인 아이디 중복 여부 체크 (UserServiceImpl.signup 참고)
+    boolean existsByLoginId(String loginId);
+
+    // 로그인 아이디로 회원 조회 (로그인 시 사용). 없을 수도 있으니 Optional로 감싸서 리턴됨
+    Optional<User> findByLoginId(String loginId);
 
 }

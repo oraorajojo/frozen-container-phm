@@ -1,0 +1,28 @@
+# 로컬 실행용 MySQL (팀 공용 Railway DB 없이 바로 실행해 보기 위한 용도)
+# 실행: docker compose up -d  →  local 프로필로 서버 실행 (README 참고)
+# 아래 계정 정보는 로컬 전용 값이라 비밀이 아님. 운영 DB에는 절대 쓰지 말 것
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: frozenapi-mysql
+    environment:
+      MYSQL_DATABASE: frozenapi
+      MYSQL_USER: frozen
+      MYSQL_PASSWORD: frozen1234
+      MYSQL_ROOT_PASSWORD: root1234
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"   # PC에 설치된 MySQL(3306)과 겹치지 않게 3307로 노출
+    volumes:
+      - frozenapi-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  frozenapi-mysql-data:

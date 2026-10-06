@@ -43,21 +43,26 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public SignupResponseDTO signup(SignupRequestDTO signupRequestDTO) {
-        log.info("*********** UserService - signup - email: {}", signupRequestDTO.getEmail());
+        log.info("*********** UserService - signup - loginId: {}", signupRequestDTO.getLoginId());
 
-        // 1) 이메일 중복 체크
+        // 1) 로그인 아이디 중복 체크 (로그인 자격증명이라 이메일보다 먼저 검사)
+        if (userRepository.existsByLoginId(signupRequestDTO.getLoginId())) {
+            throw new IllegalArgumentException("이미 사용 중인 로그인 아이디입니다.");
+        }
+
+        // 2) 이메일 중복 체크
         //    이미 가입된 이메일이면 예외를 던짐 -> CustomControllerAdvice가 잡아서 409 Conflict 응답으로 변환
         if (userRepository.existsByEmail(signupRequestDTO.getEmail())) {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
         }
 
-        // 2) 지점 존재 여부 검증 (2026-07-16 회의록: 회원가입 시 소속 지점 선택 필수)
+        // 3) 지점 존재 여부 검증 (2026-07-16 회의록: 회원가입 시 소속 지점 선택 필수)
         //    branch_id는 User.java에 @ManyToOne 없이 단순 값으로만 저장하므로, 존재하지 않는 지점을 가리키지 않도록 여기서 직접 확인
         if (!branchRepository.existsById(signupRequestDTO.getBranchId())) {
             throw new NoSuchElementException("존재하지 않는 지점입니다.");
         }
 
-        // 3) ADMIN 셀프 신청 차단 (2026-07-16 회의록: 매니저 승격도 신청+관리자 승인 절차를 두는데,
+        // 4) ADMIN 셀프 신청 차단 (2026-07-16 회의록: 매니저 승격도 신청+관리자 승인 절차를 두는데,
         //    회원가입만으로 최고 권한인 ADMIN을 받을 수 있으면 그 승인 체계 자체가 무의미해짐)
         //    STAFF/MANAGER는 사용자가 신청값 그대로 받되, status가 PENDING인 동안은 로그인 자체가
         //    막혀있으므로(login() 참고) 관리자가 승인하기 전까지 실제로 이 권한이 쓰이지는 않는다.
@@ -65,10 +70,11 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("관리자 권한은 회원가입으로 신청할 수 없습니다.");
         }
 
-        // 4) 요청받은 정보로 User 엔티티 생성
+        // 5) 요청받은 정보로 User 엔티티 생성
         //    - 비밀번호는 절대 평문(원본) 그대로 저장하지 않고, passwordEncoder.encode()로 암호화(BCrypt 해시)한 값을 저장
         //    - status는 PENDING(승인 대기)으로 시작 -> 관리자가 별도로 승인해야 ACTIVE로 전환되는 구조 (관리자 승인 기능은 추후 구현)
         User user = User.builder()
+                .loginId(signupRequestDTO.getLoginId())
                 .email(signupRequestDTO.getEmail())
                 .username(signupRequestDTO.getUsername())
                 .passwordHash(passwordEncoder.encode(signupRequestDTO.getPassword()))
@@ -78,11 +84,11 @@ public class UserServiceImpl implements UserService {
                 .status(UserStatus.PENDING)
                 .build();
 
-        // 5) DB에 저장
+        // 6) DB에 저장
         //    save()가 리턴하는 saved 엔티티에는 DB가 채번한 userId, @CreatedDate로 채워진 createdAt이 반영되어 있음
         User saved = userRepository.save(user);
 
-        // 6) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
+        // 7) 엔티티를 그대로 리턴하지 않고, 응답용 DTO로 변환해서 리턴 (passwordHash는 응답에서 제외됨)
         return entityToDTO(saved);
     }
 
@@ -90,6 +96,7 @@ public class UserServiceImpl implements UserService {
     private SignupResponseDTO entityToDTO(User user) {
         return SignupResponseDTO.builder()
                 .userId(user.getUserId())
+                .loginId(user.getLoginId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .position(user.getPosition())
@@ -110,18 +117,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
-        log.info("*********** UserService - login - email: {}", loginRequestDTO.getEmail());
+        log.info("*********** UserService - login - loginId: {}", loginRequestDTO.getLoginId());
 
-        // 1) 이메일로 회원 조회. 없으면 로그인 실패
-        //    "이메일이 존재하지 않습니다"처럼 구체적으로 알려주지 않고 동일한 메시지를 쓰는 이유:
-        //    이메일 존재 여부까지 노출하면 공격자가 가입된 이메일 목록을 추측(계정 열거 공격)할 수 있기 때문
-        User user = userRepository.findByEmail(loginRequestDTO.getEmail())
-                .orElseThrow(() -> new LoginFailException("이메일 또는 비밀번호가 일치하지 않습니다."));
+        // 1) 로그인 아이디로 회원 조회. 없으면 로그인 실패
+        //    "아이디가 존재하지 않습니다"처럼 구체적으로 알려주지 않고 동일한 메시지를 쓰는 이유:
+        //    존재 여부까지 노출하면 공격자가 가입된 아이디 목록을 추측(계정 열거 공격)할 수 있기 때문
+        User user = userRepository.findByLoginId(loginRequestDTO.getLoginId())
+                .orElseThrow(() -> new LoginFailException("아이디 또는 비밀번호가 일치하지 않습니다."));
 
         // 2) 비밀번호 검증: 요청받은 원본 비밀번호를 암호화해서 비교하는 게 아니라,
         //    passwordEncoder.matches(원본, 저장된해시)가 내부적으로 같은 방식으로 해시해서 비교해준다.
         if (!passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPasswordHash())) {
-            throw new LoginFailException("이메일 또는 비밀번호가 일치하지 않습니다.");
+            throw new LoginFailException("아이디 또는 비밀번호가 일치하지 않습니다.");
         }
 
         // 3) 승인 대기(PENDING) 상태면 로그인 자체를 막는다 (관리자 승인 API는 아직 없음 - 추후 구현 예정)
@@ -138,6 +145,7 @@ public class UserServiceImpl implements UserService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userId(user.getUserId())
+                .loginId(user.getLoginId())
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .position(user.getPosition())
@@ -171,6 +179,7 @@ public class UserServiceImpl implements UserService {
     private Map<String, Object> buildClaims(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getUserId());
+        claims.put("loginId", user.getLoginId());
         claims.put("email", user.getEmail());
         claims.put("username", user.getUsername());
         claims.put("role", user.getRole().name());
