@@ -1,7 +1,12 @@
 package com.singsing.frozenapi.service;
 
 import com.singsing.frozenapi.dto.*;
-import com.singsing.frozenapi.entity.*;
+import com.singsing.frozenapi.domain.Item;
+import com.singsing.frozenapi.domain.ContainerItemLog;
+import com.singsing.frozenapi.domain.AlertGrade;
+import com.singsing.frozenapi.domain.AlertSource;
+import com.singsing.frozenapi.entity.PredictionResult;
+import com.singsing.frozenapi.entity.SensorReading;
 import com.singsing.frozenapi.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,22 +29,25 @@ public class PredictionService {
     private final PredictionResultRepository predictionResultRepo;
     private final ContainerItemLogRepository containerItemLogRepo;
     private final ItemRepository itemRepo;
+    private final AlertService alertService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final String CALC_VERSION = "xgb_json_v2_foodtype";
+    private static final Set<String> ALERT_GRADES = Set.of("Yellow", "Red");
 
     public PredictionService(SensorReadingRepository s, PredictionResultRepository p,
-                             ContainerItemLogRepository c, ItemRepository i) {
+                             ContainerItemLogRepository c, ItemRepository i,
+                             AlertService alertService) {
         this.sensorReadingRepo = s;
         this.predictionResultRepo = p;
         this.containerItemLogRepo = c;
         this.itemRepo = i;
+        this.alertService = alertService;
     }
 
     public PredictResponseDto predict(Integer readingId) throws Exception {
         SensorReading latest = sensorReadingRepo.findById(readingId)
                 .orElseThrow(() -> new RuntimeException("reading_id 없음: " + readingId));
 
-        // 현재 컨테이너에 실린 품목 조회 (unloaded_at이 null = 아직 하역 안 됨)
         ContainerItemLog log = containerItemLogRepo
                 .findFirstByContainerIdAndUnloadedAtIsNullOrderByLoadedAtDesc(latest.getContainerId())
                 .orElseThrow(() -> new RuntimeException("현재 적재된 품목 없음: container_id=" + latest.getContainerId()));
@@ -106,6 +115,18 @@ public class PredictionService {
         result.setCalcVersion(CALC_VERSION);
         result.setPredictedAt(LocalDateTime.now());
         predictionResultRepo.save(result);
+
+        // Yellow/Red 등급이면 alerts에 자동 등록
+        if (ALERT_GRADES.contains(response.getFreshnessGrade())) {
+            AlertRequestDTO alertRequest = AlertRequestDTO.builder()
+                    .containerId(latest.getContainerId())
+                    .source(AlertSource.COMPRESSOR)
+                    .grade(AlertGrade.valueOf(response.getFreshnessGrade().toUpperCase()))
+                    .message(String.format("%s 품목 신선도 %s 등급 감지 (RUL 예측 %.1f)",
+                            foodType, response.getFreshnessGrade(), response.getRulPred()))
+                    .build();
+            alertService.register(alertRequest);
+        }
 
         return response;
     }

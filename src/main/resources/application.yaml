@@ -17,6 +17,13 @@ spring:
         show_sql: true
         highlight_sql: true
 
+# JWT 서명에 사용하는 비밀 키 (HS256 이상을 위해 최소 32바이트 이상의 무작위 문자열)
+# DB_PASSWORD와 똑같이 인텔리제이 Edit Configurations → Environment variables에 JWT_SECRET을 넣으셈
+custom:
+  jwt:
+    key: ${JWT_SECRET}
+
+# 예측(prediction) 도메인에서 사용하는 파이썬 실행 경로 (종선님 로컬 환경 기준 - 각자 실행 환경에 맞게 바꿔야 함)
 phm:
   python:
     path: C:/user/sole/frozen-container-phm/python/venv/Scripts/python.exe

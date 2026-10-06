@@ -1,0 +1,63 @@
+package com.singsing.frozenapi.controller.advice;
+
+import com.singsing.frozenapi.util.CustomJWTException;
+import com.singsing.frozenapi.util.LoginFailException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+// 프로젝트 전역(모든 컨트롤러)에서 발생하는 특정 예외를 잡아,
+// 사람이 읽기 좋은 JSON 에러 응답으로 변환해주는 클래스
+//
+// 이게 없다면? 예외가 그대로 터져서 스프링 기본 에러 페이지(스택트레이스 포함 500 에러 등)가 그대로 노출됨
+@RestControllerAdvice // @ControllerAdvice + @ResponseBody. 모든 @RestController에서 발생하는 예외를 여기서 가로챈다
+public class CustomControllerAdvice {
+
+    // UserServiceImpl.signup()에서 이메일 중복 시 던지는 IllegalArgumentException을 처리
+    // -> 이메일 중복은 "요청 자체는 형식상 맞지만, 이미 존재하는 자원과 충돌"하는 상황이므로 409 Conflict 사용
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<?> handleIllegalArgument(IllegalArgumentException e) {
+        // 응답 예시: { "msg": "이미 가입된 이메일입니다." }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("msg", e.getMessage()));
+    }
+
+    // ContainerServiceImpl.getContainerOrThrow()/remove()에서 존재하지 않는 id로 조회/삭제 시 던지는 예외 처리
+    // -> 요청한 자원이 존재하지 않는 상황이므로 404 Not Found 사용
+    @ExceptionHandler(NoSuchElementException.class)
+    protected ResponseEntity<?> handleNotFound(NoSuchElementException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("msg", e.getMessage()));
+    }
+
+    // UserServiceImpl.login()에서 이메일/비밀번호 불일치, 승인 대기(PENDING) 계정 로그인 시도 시 던지는 예외 처리
+    // -> "인증 자체에 실패"한 상황이므로 401 Unauthorized 사용
+    @ExceptionHandler(LoginFailException.class)
+    protected ResponseEntity<?> handleLoginFail(LoginFailException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("msg", e.getMessage()));
+    }
+
+    // JWTUtil.validateToken()에서 토큰이 만료/변조/형식오류 등으로 검증에 실패했을 때 던지는 예외 처리
+    // (주로 /api/users/refresh 호출 시 refreshToken 자체가 유효하지 않은 경우 발생)
+    @ExceptionHandler(CustomJWTException.class)
+    protected ResponseEntity<?> handleJWTException(CustomJWTException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("msg", e.getMessage()));
+    }
+
+    // SignupRequestDTO, ContainerRequestDTO의 @NotBlank, @Email, @Size 같은 Bean Validation 검증이 실패했을 때
+    // Spring이 자동으로 던지는 MethodArgumentNotValidException을 처리 (모든 요청 DTO에 공통 적용됨)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    protected ResponseEntity<?> handleValidation(MethodArgumentNotValidException e) {
+        // 검증에 실패한 필드가 여러 개일 수 있으므로, 각 필드의 에러 메시지를 모아서 하나의 문자열로 합침
+        // 예: "email: 이메일 형식이 올바르지 않습니다., password: 비밀번호는 8자 이상 64자 이하로 입력해주세요."
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("msg", message));
+    }
+
+}
