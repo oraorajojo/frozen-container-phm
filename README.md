@@ -289,15 +289,47 @@ erDiagram
 
 ## ▶️ 실행 방법
 
-```bash
-./gradlew bootRun
-```
+### 로컬에서 바로 실행하기 (Docker)
 
-실행 전에 아래 환경 변수를 설정해야 합니다. IntelliJ에서는 Edit Configurations → Environment variables에 넣으면 됩니다.
+별도 DB 계정 없이 Docker로 MySQL을 띄워서 실행할 수 있습니다.
+
+**준비물**: JDK 17, Docker Desktop
+
+1. MySQL 컨테이너를 실행합니다. (`localhost:3307`)
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. `local` 프로필로 서버를 실행합니다.
+
+   ```bash
+   SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+   ```
+
+   Windows PowerShell에서는 `$env:SPRING_PROFILES_ACTIVE="local"; .\gradlew bootRun`, IntelliJ에서는 실행 설정의 **Active profiles**에 `local`을 입력합니다.
+
+3. `http://localhost:8080`으로 API를 호출합니다.
+
+`local` 프로필에서는 다음이 자동으로 처리됩니다.
+
+- 테이블은 JPA(`ddl-auto: update`)가 생성합니다.
+- 지점 샘플 데이터(`1: 강남점`, `2: 부산점`)가 들어가 있어 바로 회원가입·컨테이너 등록을 해 볼 수 있습니다.
+- JWT 키는 로컬 전용 기본값을 씁니다. (`JWT_SECRET` 환경 변수가 있으면 그 값 우선)
+
+> 회원가입한 계정은 `PENDING` 상태라 바로 로그인할 수 없습니다. 아직 관리자 승인 API가 없으므로, 로컬에서는 아래 SQL로 승인한 뒤 로그인합니다.
+>
+> ```bash
+> docker exec -it frozenapi-mysql mysql -ufrozen -pfrozen1234 frozenapi -e "UPDATE users SET status='ACTIVE' WHERE login_id='kkokk1234';"
+> ```
+
+종료할 때는 `docker compose down`을 실행합니다. 데이터까지 지우려면 `docker compose down -v`를 실행합니다.
+
+### 팀 공용 DB로 실행하기
+
+기본 프로필은 팀 공용 MySQL(Railway)에 연결합니다. 아래 환경 변수를 설정한 뒤 `./gradlew bootRun`으로 실행합니다. IntelliJ에서는 Edit Configurations → Environment variables에 넣습니다.
 
 | 환경 변수 | 설명 |
 | --- | --- |
 | `DB_PASSWORD` | MySQL 비밀번호 |
 | `JWT_SECRET` | JWT 서명 키 (32바이트 이상 무작위 문자열) |
-
-기본 주소는 `http://localhost:8080`입니다.

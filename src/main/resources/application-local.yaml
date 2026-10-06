@@ -1,0 +1,23 @@
+# 로컬 실행용 프로필 (docker-compose.yml의 MySQL에 연결)
+# 실행: SPRING_PROFILES_ACTIVE=local  또는  인텔리제이 Active profiles에 local 입력
+# application.yaml 값 중 여기 적은 것만 덮어씀
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/frozenapi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: frozen
+    password: frozen1234
+
+  # 테이블은 Hibernate(ddl-auto: update)가 먼저 만들고, 그 다음에 data-local.sql로 지점 샘플 데이터를 넣음
+  jpa:
+    defer-datasource-initialization: true
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-local.sql
+      encoding: UTF-8
+
+# 로컬 전용 JWT 키. JWT_SECRET 환경변수가 있으면 그 값을 쓰고, 없으면 아래 기본값을 씀
+# 기본값은 저장소에 공개된 값이라 운영 환경에서는 절대 쓰면 안 됨
+custom:
+  jwt:
+    key: ${JWT_SECRET:local-only-dev-key-do-not-use-in-production-0123456789}
