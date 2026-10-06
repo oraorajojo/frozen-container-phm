@@ -2,8 +2,8 @@
 
 > 냉동 컨테이너 상태 관리(PHM, Prognostics & Health Management) 백엔드 API 서버
 
-지점별 냉동 컨테이너를 등록·관리하고, 컨테이너의 적재 품목과 이상 알림을 추적하는 백엔드입니다.
-이 저장소에서 **회원가입(인증)과 컨테이너 API의 설계·구현**을 맡았습니다.
+지점별 냉동 컨테이너를 등록·관리하고, 컨테이너 센서값으로 **적재 품목의 신선도 등급과 잔여 수명(RUL)을 예측**해 이상이 있으면 알림을 남기는 백엔드입니다.
+팀 프로젝트에서 **회원가입(인증)과 컨테이너 API의 설계·구현**을 맡았습니다.
 
 <br>
 
@@ -11,10 +11,12 @@
 
 | 영역 | 담당 내용 |
 | --- | --- |
-| **회원가입 / 인증** | 회원가입 API, 가입 승인(PENDING → ACTIVE) 흐름, BCrypt 비밀번호 암호화, JWT 로그인·토큰 재발급 |
+| **회원가입 / 인증** | 회원가입 API, 가입 승인(PENDING → ACTIVE) 흐름, 로그인 아이디(`loginId`) 기반 로그인, BCrypt 비밀번호 암호화, JWT 발급·재발급 |
 | **컨테이너** | 컨테이너 CRUD API, 지점(Branch) 연동 검증 |
-| **데이터 설계** | `users`, `containers` 스키마를 DB 설계서 기준으로 정리하고 엔티티로 구현 |
-| **공통** | 요청 DTO 검증(Bean Validation), 전역 예외 처리와 에러 응답 형식 통일 |
+| **데이터 설계** | DB 설계서 기준으로 `users`, `containers`, `branch`, `items`, `container_item_log`, `alerts` 스키마를 엔티티로 구현 |
+| **공통 / 환경** | 요청 DTO 검증(Bean Validation), 전역 예외 처리와 에러 응답 형식 통일, Docker 기반 로컬 실행 환경 |
+
+센서값 저장, XGBoost 신선도·RUL 예측, 예측 결과에 따른 알림 자동 등록은 팀원이 담당했습니다.
 
 <br>
 
@@ -22,29 +24,53 @@
 
 | 분류 | 사용 기술 |
 | --- | --- |
-| Language | Java 17 |
+| Language | Java 17, Python |
 | Framework | Spring Boot 3.5, Spring Security, Spring Data JPA |
 | Auth | JWT (jjwt 0.11.5), BCrypt |
-| Database | MySQL |
+| Database | MySQL (팀 공용: Railway / 로컬: Docker) |
+| ML | XGBoost (식품 유형별 신선도 분류 모델 + RUL 회귀 모델) |
 | Validation | Jakarta Bean Validation |
 | Build | Gradle |
 
 <br>
 
-## 🗂 ERD (담당 범위 중심)
+## 🔄 시스템 흐름
+
+```mermaid
+flowchart LR
+    U[사용자] -->|회원가입 · 로그인| AUTH[회원 API<br/>JWT 발급]
+    U -->|등록 · 관리| CRUD[지점 · 컨테이너 · 품목<br/>적재 이력 API]
+    S[컨테이너 센서] -->|진동 · 유압 · 토출온도 · 모터전류| SR[센서값 저장 API]
+    SR --> P[예측 API]
+    P -->|최근 센서값 + 적재 품목 유형| PY[Python XGBoost 모델]
+    PY -->|신선도 등급 · RUL| P
+    P -->|Yellow / Red 등급| AL[알림 자동 등록]
+```
+
+1. 지점과 컨테이너를 등록하고, 직원은 회원가입 후 승인을 받아 로그인합니다.
+2. 컨테이너에 품목을 적재하면 적재 이력(`container_item_log`)이 남습니다.
+3. 센서값이 저장되면, 예측 API가 최근 센서값 5개와 현재 적재 품목의 식품 유형으로 Python 모델을 실행합니다.
+4. 예측 결과(신선도 Green / Yellow / Red, 잔여 수명)를 저장하고, Yellow·Red면 알림을 자동으로 등록합니다.
+
+<br>
+
+## 🗂 ERD
 
 ```mermaid
 erDiagram
-    branches ||--o{ users : "소속"
-    branches ||--o{ containers : "보유"
+    branch ||--o{ users : "소속"
+    branch ||--o{ containers : "보유"
     containers ||--o{ container_item_log : "적재 이력"
+    items ||--o{ container_item_log : "적재 품목"
+    containers ||--o{ sensor_reading : "센서값"
+    sensor_reading ||--o| prediction_result : "예측"
     containers ||--o{ alerts : "알림"
 
-    branches {
+    branch {
         int branch_id PK
         varchar name
         varchar address
-        varchar status
+        varchar status "ACTIVE / CLOSED / PAUSED"
     }
     users {
         int user_id PK
@@ -64,6 +90,46 @@ erDiagram
         varchar model_name
         varchar install_location
         date registered_at
+    }
+    items {
+        int item_id PK
+        varchar name
+        varchar food_type
+        int shelf_life_days
+    }
+    container_item_log {
+        int log_id PK
+        int container_id FK
+        int item_id FK
+        decimal quantity
+        datetime loaded_at
+        datetime unloaded_at
+    }
+    sensor_reading {
+        int reading_id PK
+        int container_id FK
+        double vibration
+        double oil_pressure
+        double discharge_temp
+        double motor_current
+        datetime recorded_at
+    }
+    prediction_result {
+        int prediction_id PK
+        int reading_id FK
+        int container_id FK
+        varchar freshness_grade
+        double rul_predicted
+        datetime predicted_at
+    }
+    alerts {
+        int alert_id PK
+        int container_id FK
+        varchar source "COMPRESSOR / SHELF_LIFE"
+        varchar grade "GREEN / YELLOW / RED"
+        varchar message
+        boolean is_read
+        datetime created_at
     }
 ```
 
@@ -116,6 +182,21 @@ erDiagram
 <br>
 
 ## 📡 API 명세
+
+### 전체 API 한눈에 보기
+
+| 도메인 | Base URL | 주요 기능 | 담당 |
+| --- | --- | --- | --- |
+| 회원 | `/api/users` | 회원가입, 로그인, 토큰 재발급 | ✅ 본인 |
+| 컨테이너 | `/api/containers` | 등록, 목록·단건 조회, 수정, 삭제 | ✅ 본인 |
+| 지점 | `/api/branches` | 등록, 조회, 수정, 상태 변경 | 팀 |
+| 품목 | `/api/items` | 등록, 조회, 수정, 삭제 | 팀 |
+| 적재 이력 | `/api/container-item-logs` | 적재 등록, 조회, 하역 처리 | 팀 |
+| 알림 | `/api/alerts` | 등록, 조회, 읽음 처리 | 팀 |
+| 센서값 | `/api/sensor-readings` | 센서값 저장 | 팀 |
+| 예측 | `/api/predictions` | 신선도·RUL 예측 실행, 컨테이너별 예측 이력 조회 | 팀 |
+
+아래는 담당한 회원·컨테이너 API의 상세 명세입니다.
 
 ### 회원 API
 
@@ -322,6 +403,8 @@ erDiagram
 > ```bash
 > docker exec -it frozenapi-mysql mysql -ufrozen -pfrozen1234 frozenapi -e "UPDATE users SET status='ACTIVE' WHERE login_id='kkokk1234';"
 > ```
+
+> 예측 API(`/api/predictions`)까지 실행하려면 Python 환경이 필요합니다. `python/requirements.txt`로 패키지를 설치한 뒤, `application.yaml`의 `phm.python.path`(python.exe 경로)와 `phm.script.path`(`python/predict.py` 경로)를 본인 환경에 맞게 바꿔 주세요. 회원·컨테이너 API는 Python 없이도 동작합니다.
 
 종료할 때는 `docker compose down`을 실행합니다. 데이터까지 지우려면 `docker compose down -v`를 실행합니다.
 
