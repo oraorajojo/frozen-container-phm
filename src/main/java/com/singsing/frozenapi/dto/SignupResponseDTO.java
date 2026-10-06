@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 public class SignupResponseDTO {
 
     private Integer userId;    // 생성된 회원의 PK
+    private String loginId;    // 로그인 전용 아이디
     private String email;
     private String username;
     private String position;   // 직급 (Role과 별개의 표시용 직함)

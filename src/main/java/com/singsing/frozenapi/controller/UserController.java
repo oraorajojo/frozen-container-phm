@@ -29,7 +29,8 @@ public class UserController {
 
     // 회원가입 API
     // 요청: POST http://localhost:8080/api/users/signup
-    //       Body(JSON): { "email": "a@a.com", "password": "12345678" }
+    //       Body(JSON): { "loginId": "kkokk1234", "email": "a@a.com", "username": "홍길동",
+    //                     "password": "12345678", "branchId": 1, "position": "사원", "role": "STAFF" }
     @PostMapping("/signup")
     public ResponseEntity<SignupResponseDTO> signup(
             @Valid @RequestBody SignupRequestDTO signupRequestDTO) {
@@ -48,11 +49,11 @@ public class UserController {
 
     // 로그인 API
     // 요청: POST http://localhost:8080/api/users/login
-    //       Body(JSON): { "email": "a@a.com", "password": "12345678" }
+    //       Body(JSON): { "loginId": "kkokk1234", "password": "12345678" }
     // 이 경로는 JWTCheckFilter.shouldNotFilter()에서 필터를 건너뛰도록 등록되어 있다 (로그인 전이라 토큰이 없는 게 당연하므로)
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
-        log.info("*********** UserController - login: {}", loginRequestDTO.getEmail());
+        log.info("*********** UserController - login: {}", loginRequestDTO.getLoginId());
         LoginResponseDTO responseDTO = userService.login(loginRequestDTO);
         // 로그인은 새 자원을 만드는 게 아니라 기존 회원을 인증하는 것이므로 200 OK 사용 (signup의 201 Created와 다름)
         return ResponseEntity.ok(responseDTO);

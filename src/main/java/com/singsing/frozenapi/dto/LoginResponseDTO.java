@@ -18,6 +18,7 @@ public class LoginResponseDTO {
     private String refreshToken; // 긴 유효시간 (accessToken 재발급 전용, /api/users/refresh 에서 사용)
 
     private Integer userId;
+    private String loginId;
     private String email;
     private String username;
     private String position;

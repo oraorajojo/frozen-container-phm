@@ -24,7 +24,12 @@ public class User {
     @Column(name = "user_id") // 실제 DB 컬럼명 지정 (Java 필드명 userId -> DB 컬럼명 user_id)
     private Integer userId;
 
-    @Column(nullable = false, unique = true, length = 100) // NOT NULL + 중복 불가(유니크) 제약조건. 이메일은 로그인 아이디 역할이라 중복되면 안 됨
+    // 로그인 전용 아이디. email과 별개 - 프론트 요청으로 로그인은 email이 아니라 이 필드로 하도록 변경
+    // email은 더 이상 로그인에 쓰이진 않지만, 연락처/식별 정보로는 계속 유지 (그래서 unique는 그대로 둠)
+    @Column(name = "login_id", nullable = false, unique = true, length = 50) // NOT NULL + 중복 불가. 로그인 자격증명이라 유니크 필수
+    private String loginId;
+
+    @Column(nullable = false, unique = true, length = 100) // NOT NULL + 중복 불가(유니크) 제약조건. 로그인엔 안 쓰이지만 이메일 자체는 여전히 중복되면 안 되는 개인 식별 정보
     private String email;
 
     @Column(nullable = false, length = 50) // 화면에 보여줄 이름/닉네임. email과 달리 중복은 허용 (unique 아님)
@@ -87,6 +92,11 @@ public class User {
     // 직급 변경 시 사용 (추후 프로필 수정 기능에서 사용 예정)
     public void changePosition(String position) {
         this.position = position;
+    }
+
+    // 로그인 아이디 변경 시 사용 (추후 프로필 수정 기능에서 사용 예정)
+    public void changeLoginId(String loginId) {
+        this.loginId = loginId;
     }
 
 }

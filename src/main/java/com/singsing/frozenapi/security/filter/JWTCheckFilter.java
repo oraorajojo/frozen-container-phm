@@ -50,12 +50,12 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
             try {
                 Map<String, Object> claims = jwtUtil.validateToken(token);
-                String email = (String) claims.get("email");
+                String loginId = (String) claims.get("loginId"); // 로그인 자격증명이 email -> loginId로 바뀌어서 principal도 loginId 사용
                 String role = (String) claims.get("role");
 
                 // Spring Security의 hasRole("STAFF") 같은 표현식이 내부적으로 "ROLE_" 접두사를 기대하기 때문에 붙여준다
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        email, null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        loginId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (CustomJWTException e) {
